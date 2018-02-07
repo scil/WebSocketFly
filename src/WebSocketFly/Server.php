@@ -10,7 +10,7 @@ namespace WebSocketFly;
 use WebSocketFly\Utils\Pipeline;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\Config\FileLocator;
-use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
+use Symfony\Component\DependencyInjection\Loader\PhpFileLoader;
 
 class Server
 {
@@ -20,6 +20,7 @@ class Server
      */
     var $server;
     static $instance;
+    var $shutdownCallbacks=[];
 
     /**
      * @var \WebsocketFly\Utils\Pipeline
@@ -58,13 +59,13 @@ class Server
     {
         $configFile = is_file($options['container_configuration'] ?? null) ?
             $options['container_configuration'] :
-            __DIR__ . '/../../config/container.yml';
+            __DIR__ . '/../../config/container.php';
 
         $container = Container::setInstance();
 
         $container->set('server', $this);
 
-        $loader = new YamlFileLoader($container, new FileLocator(__DIR__));
+        $loader = new PhpFileLoader($container, new FileLocator(__DIR__));
         $loader->load($configFile);
     }
 
@@ -112,8 +113,19 @@ class Server
         $this->server->on('open', array($this, 'onOpen'));
         $this->server->on('message', array($this, 'onMessage'));
         $this->server->on('close', array($this, 'onClose'));
+        $this->server->on('shutdown', array($this, 'onShutdown'));
     }
 
+    function onShutdown()
+    {
+
+        foreach ($this->shutdownCallbacks as $c){
+            $c();
+        }
+    }
+    function addShutdownCallback($c){
+        $this->shutdownCallbacks[]=$c;
+    }
     /**
      * @param swoole_http_request $request
      * @param swoole_http_response $response
@@ -187,6 +199,9 @@ class Server
 
     function onClose(\swoole_websocket_server $server, $fd)
     {
+        return $this->onClosePipeline
+            ->then(function (){})
+            ->run([$server, $fd]);
     }
 
     public function push($msg, $fd)

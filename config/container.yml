@@ -1,9 +1,0 @@
-parameters:
-    # ...
-
-services:
-    server:
-        class: \WebSocketFly\Server
-    ipblock:
-        class: \WebSocketFly\Middlewares\IpBlockMiddleware
-        arguments: ['@server']
