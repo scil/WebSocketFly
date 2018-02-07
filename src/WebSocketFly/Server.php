@@ -8,6 +8,9 @@
 namespace WebSocketFly;
 
 use WebSocketFly\Utils\Pipeline;
+use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\Config\FileLocator;
+use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
 
 class Server
 {
@@ -38,6 +41,8 @@ class Server
     public function __construct(array $options)
     {
 
+        $this->initContainer($options);
+
         $this->initOptions($options);
 
         $this->server = $server = new \swoole_websocket_server($options['listen_ip'], $options['listen_port']);
@@ -46,7 +51,21 @@ class Server
 
         $this->setListeners();
 
-        $this->setMiddleware($options['handlers']);
+        $this->setMiddlewares($options['handlers']);
+    }
+
+    protected function initContainer($options)
+    {
+        $configFile = is_file($options['container_configuration'] ?? null) ?
+            $options['container_configuration'] :
+            __DIR__ . '/../../config/container.yml';
+
+        $container = Container::setInstance();
+
+        $container->set('server',$this);
+
+        $loader = new YamlFileLoader($container, new FileLocator(__DIR__));
+        $loader->load($configFile);
     }
 
     protected function initOptions(&$options)
@@ -56,26 +75,26 @@ class Server
         } else {
             $options['pid_file'] = $options['pid_file'] . '-' . $options['listen_port'];
         }
+
     }
 
-    protected function setMiddleware(array $middlewares)
+    protected function setMiddlewares(array $middlewares)
     {
         $handshakeMiddlewares = [];
         $openMiddlewares = [];
         $messageMiddlewares = [];
         $closeMiddlewares = [];
 
-        foreach ($middlewares as $name => $args) {
-            $handler = new $name($this, $arg['init'] ?? null);
+        foreach ($middlewares as $name ) {
+            $middleware = Container::getInstance()->get('ipblock');
             $methods_list = ['handshake', 'open', 'message', 'close'];
-            $methods = key_exists('on', $args) ? array_intersect($args['on'], $methods_list) : $methods_list;
-            foreach ($methods as $method) {
-                if (method_exists($handler, $method)) {
-                    ${$method . 'Middlewares'}[] = $handler;
+            foreach ($methods_list as $method) {
+                if (method_exists($middleware, $method)) {
+                    ${$method . 'Middlewares'}[] = $middleware;
                 }
             }
         }
-        foreach (['handshake', 'open', 'message', 'close'] as $method) {
+        foreach ($methods_list as $method) {
             $this->{$method . 'Pipeline'} = (new Pipeline())
                 ->through(${$method . 'Middlewares'})
                 ->via('onHandShake');

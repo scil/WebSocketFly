@@ -8,18 +8,16 @@
 namespace WebSocketFly\Middlewares;
 
 
-class BaseMiddleware
+class IpBlockMiddleware
 {
     /**
      * @var \WebSocketFly\Server
      */
     protected $server;
 
-    function __construct(\WebSocketFly\Server $server, \Closure $init = null)
+    function __construct(\WebSocketFly\Server $server)
     {
         $this->server = $server;
-        if ($init)
-            $init->call($this);
     }
 
     function onHandShake(\swoole_http_request $request, $next)
