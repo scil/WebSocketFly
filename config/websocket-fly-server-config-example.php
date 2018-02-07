@@ -25,7 +25,7 @@ return [
     'container_configuration'=>'',
 
     'handlers'=>[
-        \WebSocketFly\Middlewares\BaseMiddleware::class=>[],
+        'ipblock',
     ],
     // like pm.start_servers in php-fpm, but there's no option like pm.max_children
     'worker_num' => 4,

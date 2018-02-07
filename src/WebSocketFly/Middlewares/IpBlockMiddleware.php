@@ -20,11 +20,14 @@ class IpBlockMiddleware
         $this->server = $server;
     }
 
-    function onHandShake(\swoole_http_request $request, $next)
+    function onHandShake(\swoole_http_request $request,\swoole_http_response $response, $next)
     {
         $request->newReq=3;
-        echo "server: handle success with fd{$request->fd}\n";
-        return $next($request);
+        $response->end();
+        return false;
+        echo "[ip]: handle success with fd{$request->fd}\n";
+
+        return $next($request, $response);
 
     }
 }

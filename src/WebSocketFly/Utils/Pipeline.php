@@ -14,30 +14,45 @@ use RuntimeException;
 class Pipeline
 {
 
-    protected $passable;
     protected $method = 'handle';
     protected $pipes = [];
     /**
      * @var \Closure
      */
     protected $pipeline;
+    protected $passablesNo;
 
-    public function run($passable)
+    public function __construct(int $no)
     {
-        return call_user_func($this->pipeline,$passable);
+        if ($no > 3) {
+            throw new \Exception(__CLASS__ . ": only support 2 or 3 passables");
+        }
+        $this->passablesNo = $no;
     }
+
+    public function run(array $passables)
+    {
+
+        if (count($passables) != $this->passablesNo) {
+            throw new \Exception(__CLASS__ . ": thie pipeline has $this->passablesNo passables");
+        }
+        return call_user_func_array($this->pipeline, $passables);
+    }
+
     public function through($pipes)
     {
         $this->pipes = is_array($pipes) ? $pipes : func_get_args();
 
         return $this;
     }
+
     public function via($method)
     {
         $this->method = $method;
 
         return $this;
     }
+
     public function then(Closure $destination)
     {
         $this->pipeline = array_reduce(
@@ -49,31 +64,46 @@ class Pipeline
 
     protected function prepareDestination(Closure $destination)
     {
-        return function ($passable) use ($destination) {
-            return $destination($passable);
-        };
+        if ($this->passablesNo == 2) {
+            return function ($passable1, $passable2) use ($destination) {
+                return $destination($passable1, $passable2);
+            };
+        } elseif ($this->passablesNo == 3) {
+            return function ($passable1, $passable2, $passable3) use ($destination) {
+                return $destination($passable1, $passable2, $passable3);
+            };
+        }
     }
 
     protected function carry()
     {
         return function ($stack, $pipe) {
-            return function ($passable) use ($stack, $pipe) {
-                if (is_callable($pipe)) {
-                    // If the pipe is an instance of a Closure, we will just call it directly but
-                    // otherwise we'll resolve the pipes out of the container and call it with
-                    // the appropriate method and arguments, returning the results back out.
-                    return $pipe($passable, $stack);
-                } else {
-                    // If the pipe is already an object we'll just make a callable and pass it to
-                    // the pipe as-is. There is no need to do any extra parsing and formatting
-                    // since the object we're given was already a fully instantiated object.
-                    $parameters = [$passable, $stack];
-                }
+            if ($this->passablesNo == 2) {
 
-                return method_exists($pipe, $this->method)
-                    ? $pipe->{$this->method}(...$parameters)
-                    : $pipe(...$parameters);
-            };
+                return function ($passable1, $passable2) use ($stack, $pipe) {
+                    if (is_callable($pipe)) {
+                        return $pipe($passable1, $passable2);
+                    } else {
+                        $parameters = [$passable1, $passable2, $stack];
+                    }
+                    return method_exists($pipe, $this->method)
+                        ? $pipe->{$this->method}(...$parameters)
+                        : $pipe(...$parameters);
+                };
+
+            } elseif ($this->passablesNo == 3) {
+
+                return function ($passable1, $passable2, $passable3) use ($stack, $pipe) {
+                    if (is_callable($pipe)) {
+                        return $pipe($passable1, $passable2, $passable3, $stack);
+                    } else {
+                        $parameters = [$passable1, $passable2, $passable3, $stack];
+                    }
+                    return method_exists($pipe, $this->method)
+                        ? $pipe->{$this->method}(...$parameters)
+                        : $pipe(...$parameters);
+                };
+            }
         };
     }
 }

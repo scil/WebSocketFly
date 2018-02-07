@@ -22,21 +22,21 @@ class Server
     static $instance;
 
     /**
-     * @var Pipeline
+     * @var \WebsocketFly\Utils\Pipeline
      */
-    var $handshakePipeline;
+    var $onHandshakePipeline;
     /**
-     * @var Pipeline
+     * @var \WebsocketFly\Utils\Pipeline
      */
-    var $openPipeline;
+    var $onOpenPipeline;
     /**
-     * @var Pipeline
+     * @var \WebsocketFly\Utils\Pipeline
      */
-    var $messagePipeline;
+    var $onMessagePipeline;
     /**
-     * @var Pipeline
+     * @var \WebsocketFly\Utils\Pipeline
      */
-    var $closePipeline;
+    var $onClosePipeline;
 
     public function __construct(array $options)
     {
@@ -62,7 +62,7 @@ class Server
 
         $container = Container::setInstance();
 
-        $container->set('server',$this);
+        $container->set('server', $this);
 
         $loader = new YamlFileLoader($container, new FileLocator(__DIR__));
         $loader->load($configFile);
@@ -80,24 +80,29 @@ class Server
 
     protected function setMiddlewares(array $middlewares)
     {
-        $handshakeMiddlewares = [];
-        $openMiddlewares = [];
-        $messageMiddlewares = [];
-        $closeMiddlewares = [];
+        $onHandshakeMiddlewares = [];
+        $onOpenMiddlewares = [];
+        $onMessageMiddlewares = [];
+        $onCloseMiddlewares = [];
 
-        foreach ($middlewares as $name ) {
-            $middleware = Container::getInstance()->get('ipblock');
-            $methods_list = ['handshake', 'open', 'message', 'close'];
-            foreach ($methods_list as $method) {
+        $methods_list = ['onHandshake' => 2, 'onOpen' => 2, 'onMessage' => 2, 'onClose' => 2];
+
+        foreach ($middlewares as $name) {
+            $c = Container::getInstance();
+            if (!$c->has($name)) {
+                throw new \Exception('Container has not registerd ' . $name);
+            }
+            $middleware = $c->get($name);
+            foreach ($methods_list as $method => $no) {
                 if (method_exists($middleware, $method)) {
                     ${$method . 'Middlewares'}[] = $middleware;
                 }
             }
         }
-        foreach ($methods_list as $method) {
-            $this->{$method . 'Pipeline'} = (new Pipeline())
+        foreach ($methods_list as $method => $no) {
+            $this->{$method . 'Pipeline'} = (new Pipeline($no))
                 ->through(${$method . 'Middlewares'})
-                ->via('onHandShake');
+                ->via($method);
         }
     }
 
@@ -125,15 +130,15 @@ class Server
             return false;
         }
 
-        return $this->handshakePipeline
-            ->then($this->acceptHandshake($key, $response))
-            ->run($request);
+        return $this->onHandshakePipeline
+            ->then($this->acceptHandshake($key))
+            ->run([$request, $response]);
 
     }
 
-    function acceptHandshake($key, $response)
+    function acceptHandshake($key)
     {
-        return function ($request) use ($key, $response) {
+        return function ($request, $response) use ($key) {
 
             $key = base64_encode(sha1(
                 $key . '258EAFA5-E914-47DA-95CA-C5AB0DC85B11',
@@ -168,8 +173,7 @@ class Server
     function onOpen(\swoole_websocket_server $svr, \swoole_http_request $request)
     {
         $this->server->push($request->fd, 'ok oepn');
-        echo "on open server: open success with fd{$request->fd}\n";
-        var_dump(get_object_vars($request));
+        echo "[on open] server: open success with fd{$request->fd}\n";
     }
 
     function onMessage(\swoole_websocket_server $server, \swoole_websocket_frame $frame)
