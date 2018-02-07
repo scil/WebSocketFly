@@ -1,0 +1,22 @@
+{
+  "name": "scil/websocket-fly",
+  "description": "A websocket server based on swoole.",
+  "type": "library",
+  "authors": [
+    {
+      "name": "scil",
+      "email": "scil.zc@gmail.com"
+    }
+  ],
+  "require": {
+    "ext-swoole": "^1.9.23 || >=2.0.9"
+  },
+  "require-dev": {
+    "eaglewu/swoole-ide-helper": "dev-master"
+  },
+  "autoload": {
+    "psr-4": {
+      "WebSocketFly\\": "src/WebSocketFly/"
+    }
+  }
+}

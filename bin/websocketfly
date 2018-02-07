@@ -1,0 +1,66 @@
+#!/usr/bin/env php
+<?php
+
+if ($argc == 1) {
+    $msg = <<<U
+USAGE:  laravelfly-server [ACTION] [CONFIG_FILE]
+    ACTION: start|stop|reload|restart
+    CONFIG_FILE: optional, default is <project_root>/laravelfly.server.config.php. 
+    <project_root> is the root of the project which LaravelFly is installed.
+U;
+    die($msg);
+}
+
+$root = realpath(__DIR__ . '/../../../..');
+$root = realpath(__DIR__ . '/..');
+$config_file = $argc == 3 ? $argv[2] : $root . '/laravelfly.php';
+
+try {
+    $options = require $config_file;
+} catch (Exception $e) {
+    exit("config file not be loaded: $config_file");
+}
+
+if ($argv[1] == 'start') {
+    goto start;
+}
+
+if (!isset($options['pid_file'])) {
+    $pid_file = __DIR__ . '/' . $options['listen_port'] . '.pid';
+} else {
+    $pid_file = $options['pid_file'] . '-' . $options['listen_port'];
+}
+
+$pid = 0;
+try {
+    if (is_file($pid_file))
+        $pid = (int)file_get_contents($pid_file);
+} catch (Throwable $e) {
+    print("pid can not be read from $pid_file \n");
+}
+
+if (!$pid && $argv[1] != 'stop') {
+    goto start;
+}
+
+switch ($argv[1]) {
+    case 'stop':
+        posix_kill($pid, SIGTERM);
+        break;
+    case 'reload':
+        posix_kill($pid, SIGUSR1);
+        break;
+    case 'restart':
+        posix_kill($pid, SIGTERM);
+        goto start;
+        break;
+}
+
+
+exit();
+
+start:
+include $root . '/vendor/autoload.php';
+
+unset($root, $config_file, $pid_file, $pid);
+$options['server']::getInstance($options)->start();
