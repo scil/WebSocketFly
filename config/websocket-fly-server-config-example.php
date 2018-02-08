@@ -22,7 +22,8 @@ return [
 
     'listen_port' => 9509,
 
-    'container_configuration'=>'',
+    'container_server'=> __DIR__.'/container-server.php',
+    'container_worker'=> __DIR__.'/container-worker.php',
 
     'handlers'=>[
         'ipblock',

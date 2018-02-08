@@ -19,7 +19,25 @@ class Server
      * @var \swoole_websocket_server
      */
     var $server;
+
+    /**
+     * @var static
+     */
     static $instance;
+
+    /**
+     * @var string
+     */
+    var $workerContainerFile;
+
+    /**
+     * @var array
+     */
+    var $handlers=[];
+
+    /**
+     * @var array
+     */
     var $shutdownCallbacks=[];
 
     /**
@@ -42,7 +60,9 @@ class Server
     public function __construct(array $options)
     {
 
-        $this->initContainer($options);
+        $this->initServerContainer($options);
+
+        $this->handlers = $options['handlers'];
 
         $this->initOptions($options);
 
@@ -52,21 +72,25 @@ class Server
 
         $this->setListeners();
 
-        $this->setMiddlewares($options['handlers']);
     }
 
-    protected function initContainer($options)
+    protected function initServerContainer($options)
     {
-        $configFile = is_file($options['container_configuration'] ?? null) ?
-            $options['container_configuration'] :
-            __DIR__ . '/../../config/container.php';
+        $configFile = is_file($options['container_server'] ?? null) ?
+            $options['container_server'] :
+            __DIR__ . '/../../config/container-server.php';
 
-        $container = Container::setInstance();
+        $this->workerContainerFile =  is_file($options['container_worker'] ?? null) ?
+            $options['container_worker'] :
+            __DIR__ . '/../../config/container-worker.php';
 
-        $container->set('server', $this);
+        $container = Container::setServerInstance();
+
+        $container->set('flyserver', $this);
 
         $loader = new PhpFileLoader($container, new FileLocator(__DIR__));
         $loader->load($configFile);
+
     }
 
     protected function initOptions(&$options)
@@ -79,6 +103,35 @@ class Server
 
     }
 
+    protected function setListeners()
+    {
+        $this->server->on('handshake', array($this, 'onHandShake'));
+        $this->server->on('open', array($this, 'onOpen'));
+        $this->server->on('message', array($this, 'onMessage'));
+        $this->server->on('close', array($this, 'onClose'));
+
+
+        $this->server->on('workerstart', array($this, 'onWorkerStart'));
+        $this->server->on('shutdown', array($this, 'onShutdown'));
+    }
+
+    public function onWorkerStart(\swoole_server $server, int $workerid)
+    {
+        /**
+         * make sure reload middlewares and related files.
+         * e.g. if not reset, the config/ipblock-example.php cant not be read again.
+         */
+        opcache_reset();
+
+        $container = Container::setWorkerInstance();
+        $loader = new PhpFileLoader($container, new FileLocator(__DIR__));
+        $loader->load($this->workerContainerFile);
+
+        $container->set('id',$workerid);
+
+        $this->setMiddlewares($this->handlers);
+
+    }
     protected function setMiddlewares(array $middlewares)
     {
         $onHandshakeMiddlewares = [];
@@ -89,11 +142,7 @@ class Server
         $methods_list = ['onHandshake' => 2, 'onOpen' => 2, 'onMessage' => 2, 'onClose' => 2];
 
         foreach ($middlewares as $name) {
-            $c = Container::getInstance();
-            if (!$c->has($name)) {
-                throw new \Exception('Container has not registerd ' . $name);
-            }
-            $middleware = $c->get($name);
+            $middleware = Container::g($name);
             foreach ($methods_list as $method => $no) {
                 if (method_exists($middleware, $method)) {
                     ${$method . 'Middlewares'}[] = $middleware;
@@ -105,15 +154,6 @@ class Server
                 ->through(${$method . 'Middlewares'})
                 ->via($method);
         }
-    }
-
-    protected function setListeners()
-    {
-        $this->server->on('handshake', array($this, 'onHandShake'));
-        $this->server->on('open', array($this, 'onOpen'));
-        $this->server->on('message', array($this, 'onMessage'));
-        $this->server->on('close', array($this, 'onClose'));
-        $this->server->on('shutdown', array($this, 'onShutdown'));
     }
 
     function onShutdown()
@@ -185,7 +225,8 @@ class Server
     function onOpen(\swoole_websocket_server $svr, \swoole_http_request $request)
     {
         $this->server->push($request->fd, 'ok oepn');
-        echo "[on open] server: open success with fd{$request->fd}\n";
+        $id= Container::g('id');
+        echo "[on open] server: open success with fd{$request->fd}  worker:$id\n";
     }
 
     function onMessage(\swoole_websocket_server $server, \swoole_websocket_frame $frame)

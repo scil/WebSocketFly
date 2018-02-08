@@ -13,7 +13,7 @@ U;
 
 $root = realpath(__DIR__ . '/../../../..');
 $root = realpath(__DIR__ . '/..');
-$config_file = $argc == 3 ? $argv[2] : $root . '/laravelfly.php';
+$config_file = $argc == 3 ? $argv[2] : $root . '/websoketfly.php';
 
 try {
     $options = require $config_file;

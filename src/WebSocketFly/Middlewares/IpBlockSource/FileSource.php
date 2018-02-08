@@ -14,6 +14,7 @@ class FileSource implements IpBlockSource
 
     function __construct(string $f)
     {
+        var_dump('new file source');
         $this->file = $f;
     }
 

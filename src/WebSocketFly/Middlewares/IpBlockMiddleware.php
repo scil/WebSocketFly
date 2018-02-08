@@ -29,6 +29,9 @@ class IpBlockMiddleware
             $this->source->save($this->blacklist);
         });
 
+        var_dump(['init ipblock mid']);
+        var_dump($this->blacklist);
+
     }
 
     function onHandShake(\swoole_http_request $request, \swoole_http_response $response, $next)

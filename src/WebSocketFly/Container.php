@@ -9,19 +9,40 @@ namespace WebSocketFly;
 
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 
-class Container
+class Container extends  ContainerBuilder
 {
     /**
-     * @var \Symfony\Component\DependencyInjection\ContainerBuilder
+     * @var Container
      */
-    protected static $instance;
+    protected static $workerInstance;
 
-    public static function setInstance($container = null)
+    /**
+     * @var Container
+     */
+    protected static $serverInstance;
+
+
+    public static function setServerInstance()
     {
-        return static::$instance = $container ?: new ContainerBuilder()  ;
+
+        return static::$serverInstance = new static();
     }
-    public static function getInstance()
+    /**
+     * overwrite parent's private to protected
+     */
+    protected function __clone(){}
+
+    public static function setWorkerInstance()
     {
-        return static::$instance;
+        // clone is necessary, new is not good. because workerInstance would use services defined in serverInstance
+        return static::$workerInstance = clone static::$serverInstance;
+    }
+
+    public static function g($name)
+    {
+        if (static::$workerInstance->has($name)) {
+            return static::$workerInstance->get($name);
+        }
+        throw new \Exception(__CLASS__ . ": no $name regstered.");
     }
 }
