@@ -1,9 +1,4 @@
 <?php
-/**
- * User: scil
- * Date: 2018/2/3
- * Time: 0:52
- */
 
 return [
     /**
@@ -22,14 +17,29 @@ return [
 
     'listen_port' => 9509,
 
-    'container_server'=> __DIR__.'/container-server.php',
-    'container_worker'=> __DIR__.'/container-worker.php',
+    'services_with_server'=>
+"
+services:
+    flyserver:
+        synthetic: true
+",
+
+    'services_with_worker'=>
+"
+services:
+    ipblock.source:
+        class:     \WebSocketFly\Middlewares\IpBlockSource\PhpFileSource
+        arguments: ['".__DIR__."/ipblock-example.php']
+    ipblock:
+        class:      \WebSocketFly\Middlewares\IpBlockMiddleware
+        arguments: ['@flyserver','@ipblock.source']
+",
 
     'handlers'=>[
         'ipblock',
     ],
     // like pm.start_servers in php-fpm, but there's no option like pm.max_children
-    'worker_num' => 4,
+    'worker_num' => 1,
 
     // max number of coroutines handled by a worker in the same time
     'max_coro_num' => 3000,

@@ -7,6 +7,7 @@
 
 namespace WebSocketFly;
 
+use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
 use WebSocketFly\Utils\Pipeline;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\Config\FileLocator;
@@ -76,19 +77,17 @@ class Server
 
     protected function initServerContainer($options)
     {
-        $configFile = is_file($options['container_server'] ?? null) ?
-            $options['container_server'] :
-            __DIR__ . '/../../config/container-server.php';
+        $configFile = __DIR__ . '/../../config/.services-server.yml';
+        file_put_contents($configFile,$options['services_with_server']);
 
-        $this->workerContainerFile =  is_file($options['container_worker'] ?? null) ?
-            $options['container_worker'] :
-            __DIR__ . '/../../config/container-worker.php';
+        $this->workerContainerFile = __DIR__ . '/../../config/.services-worker.yml';
+        file_put_contents($this->workerContainerFile, $options['services_with_worker']);
 
         $container = Container::setServerInstance();
 
         $container->set('flyserver', $this);
 
-        $loader = new PhpFileLoader($container, new FileLocator(__DIR__));
+        $loader = new YamlFileLoader($container, new FileLocator(__DIR__));
         $loader->load($configFile);
 
     }
@@ -125,7 +124,7 @@ class Server
         opcache_reset();
 
         $container = Container::setWorkerInstance();
-        $loader = new PhpFileLoader($container, new FileLocator(__DIR__));
+        $loader = new YamlFileLoader($container, new FileLocator(__DIR__));
         $loader->load($this->workerContainerFile);
 
         $container->set('id',$workerid);
@@ -217,7 +216,6 @@ class Server
                 $this->onOpen($this->server, $request);
             });
 
-            var_dump("officeal hand shake to return true");
             return true;
 
         };
