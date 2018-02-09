@@ -12,5 +12,5 @@ interface IpBlockSource
 {
     function read();
 
-    function save(array $list);
+    function stop(array $list);
 }

@@ -34,7 +34,11 @@ class Container extends  ContainerBuilder
 
     public static function setWorkerInstance()
     {
-        // clone is necessary, new is not good. because workerInstance would use services defined in serverInstance
+
+        /**
+         * another sulution is not `clone` but `new` and in method g(), first seek in $workerInstance and in $serverInstance.
+         * but it's not good. because workerInstance would use services defined in serverInstance
+         */
         return static::$workerInstance = clone static::$serverInstance;
     }
 

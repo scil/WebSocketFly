@@ -38,7 +38,7 @@ class Server
     /**
      * @var array
      */
-    var $shutdownCallbacks=[];
+    var $workerstopCallbacks=[];
 
     /**
      * @var \WebsocketFly\Utils\Pipeline
@@ -112,7 +112,8 @@ class Server
 
 
         $this->server->on('workerstart', array($this, 'onWorkerStart'));
-        $this->server->on('shutdown', array($this, 'onShutdown'));
+        $this->server->on('workerstop', array($this, 'onWorkerStop'));
+        // $this->server->on('shutdown', array($this, 'onShutdown'));
     }
 
     public function onWorkerStart(\swoole_server $server, int $workerid)
@@ -156,15 +157,15 @@ class Server
         }
     }
 
-    function onShutdown()
+    function onWorkerStop()
     {
 
-        foreach ($this->shutdownCallbacks as $c){
+        foreach ($this->workerstopCallbacks as $c){
             $c();
         }
     }
-    function addShutdownCallback($c){
-        $this->shutdownCallbacks[]=$c;
+    function addWorkerstopCallback($c){
+        $this->workerstopCallbacks[]=$c;
     }
     /**
      * @param swoole_http_request $request

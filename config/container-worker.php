@@ -2,7 +2,7 @@
 use Symfony\Component\DependencyInjection\Reference;
 
 $container
-    ->register('ipblock.source', \WebSocketFly\Middlewares\IpBlockSource\FileSource::class)
+    ->register('ipblock.source', \WebSocketFly\Middlewares\IpBlockSource\PhpFileSource::class)
     ->addArgument(__DIR__.'/ipblock-example.php')
 ;
 

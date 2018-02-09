@@ -24,13 +24,10 @@ class IpBlockMiddleware
         $this->blacklist = $source->read();
         //todo save reg event listen
 
-        $server->addShutdownCallback(function (){
+        $server->addWorkerstopCallback(function (){
             $this->blockAddress('127.1.0.0');
-            $this->source->save($this->blacklist);
+            $this->source->stop($this->blacklist);
         });
-
-        var_dump(['init ipblock mid']);
-        var_dump($this->blacklist);
 
     }
 
